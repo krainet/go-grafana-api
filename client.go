@@ -2,6 +2,7 @@ package gapi
 
 import (
 	"bytes"
+	"crypto/tls"
 	"fmt"
 	"io"
 	"log"
@@ -20,17 +21,29 @@ type Client struct {
 
 //New creates a new grafana client
 //auth can be in user:pass format, or it can be an api key
-func New(auth, baseURL string) (*Client, error) {
+func New(auth, baseURL string, disableTls bool) (*Client, error) {
 	u, err := url.Parse(baseURL)
 	if err != nil {
 		return nil, err
 	}
+
 	key := ""
 	if strings.Contains(auth, ":") {
 		split := strings.Split(auth, ":")
 		u.User = url.UserPassword(split[0], split[1])
 	} else {
 		key = fmt.Sprintf("Bearer %s", auth)
+	}
+
+	if disableTls {
+		tr := &http.Transport{
+			TLSClientConfig: &tls.Config{InsecureSkipVerify: true},
+		}
+		return &Client{
+			key,
+			*u,
+			&http.Client{Transport: tr},
+		}, nil
 	}
 	return &Client{
 		key,
